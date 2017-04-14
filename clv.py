@@ -39,8 +39,11 @@ def cli(config, input, output, verbose):
 @click.argument('word')
 @click.argument('lang')
 @click.argument('definition', required=False)
+@click.option('--add_defintion', help='Add an additional definition,\
+                                       otherwise the main definition will be overwritten',
+                                 is_flag=True)
 @pass_config
-def add(config, word, lang, definition):
+def add(config, word, lang, definition, add_defintion):
   """Add a word to the clvdb."""
   echo   = click.echo
   output = config.output
@@ -48,7 +51,7 @@ def add(config, word, lang, definition):
 
   entry = {'word':word
           ,'lang':lang
-          ,'definition':definition}
+          ,'definitions':[definition]}
   data.append(entry)
   echo('Successfully added {}!'.format(word))
   if config.verbose:
@@ -68,7 +71,8 @@ def list(config, lang):
   echo('{}-+-{}-+--------------'.format('-'.ljust(word_size, '-'), '-'.ljust(4, '-')))
   for d in data:
     if lang is None or d['lang'] == lang:
-      echo('{} | {} | {}'.format(d['word'].ljust(word_size), d['lang'].ljust(4), d['definition']))
+      definitions = _build_definitions(d['definitions'], word_size)
+      echo('{} | {} | {}'.format(d['word'].ljust(word_size), d['lang'].ljust(4), definitions))
 
 
 def _load(input):
@@ -78,3 +82,16 @@ def _load(input):
   except:
     data = []
   return data
+
+
+def _build_definitions(definitions, offset):
+  nums = '①②③④⑤⑥⑦⑧⑨⑩'
+  out  = []
+  padding = 0
+  for idx, d in enumerate(definitions):
+    if not d:
+      continue
+    if idx != 0:
+      padding = offset + 10
+    out.append('{}{} {}'.format(' ' * padding, nums[idx], d))
+  return '\n'.join(out)
