@@ -1,14 +1,14 @@
-#clv
+# clv
 _Command Line Vocab_: for all of you who wish you could play with vocabulary from the terminal.
 
 
-##installation
+## installation
 ```
 $ pip install --editable .
 $ clv --help
 ```
 
-##commands
+## commands
 _all commands use word and language as unique key, to prevent collision with homographs across languages_
 
 flags are single dashes, options are double dashes.
