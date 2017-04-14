@@ -1,0 +1,4 @@
+.env/
+__pycache__
+command_line_vocab
+*.egg-info
