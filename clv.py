@@ -51,7 +51,8 @@ def add(config, word, lang, definition, add_defintion):
 
   entry = {'word':word
           ,'lang':lang
-          ,'definitions':[definition]}
+          ,'definitions':[definition]
+          ,'tags':[]}
   data.append(entry)
   echo('Successfully added {}!'.format(word))
   if config.verbose:
@@ -109,19 +110,65 @@ def edit(config, word, lang, definition, def_id, a):
 
 
 @cli.command()
-@click.argument('lang', required=False)
+@click.argument('word')
+@click.argument('lang')
+@click.argument('tag')
 @pass_config
-def list(config, lang):
+def tag(config, word, lang, tag):
+  """Tag a word in the clvdb."""
+  echo   = click.echo
+  output = config.output
+  data   = config.data
+  rec_id = _find(data, word, lang)
+  data[rec_id]['tags'].append(tag)
+  echo('Added tag to {}'.format(word))
+  if config.verbose:
+    echo(json.dumps(data[rec_id]))
+  echo(json.dumps(data), file=output)
+
+
+@cli.command()
+@click.argument('word')
+@click.argument('lang')
+@click.argument('tag')
+@pass_config
+def untag(config, word, lang, tag):
+  """Remove a tag from a word in the clvdb."""
+  echo   = click.echo
+  output = config.output
+  data   = config.data
+  rec_id = _find(data, word, lang)
+  tags   = data[rec_id]['tags']
+  data[rec_id]['tags'] = [t for t in tags if t != tag]
+  echo('Removed tag from {}'.format(word))
+  if config.verbose:
+    echo(json.dumps(data[rec_id]))
+  echo(json.dumps(data), file=output)
+
+
+@cli.command()
+@click.argument('lang', required=False)
+@click.option('-t', help='Display tags', is_flag=True)
+@click.option('--tags', help='Filter by tags (comma separated)')
+@pass_config
+def list(config, lang, t, tags):
   """List words in the DB."""
   echo = click.echo
   data = config.data
+  tags = tags.split(',')
   word_size = 10
   echo('{} | {} | {}'.format('entry'.ljust(word_size), 'lang', 'definition'))
   echo('{}-+-{}-+--------------'.format('-'.ljust(word_size, '-'), '-'.ljust(4, '-')))
   for d in data:
     if lang is None or d['lang'] == lang:
+      # if tags are being filtered on, pass if entry isn't tagged with the tag
+      if tags and not set(tags).issubset(d['tags']):
+        continue
       definitions = _build_definitions(d['definitions'], word_size)
       echo('{} | {} | {}'.format(d['word'].ljust(word_size), d['lang'].ljust(4), definitions))
+      if t and d['tags']:
+        _tags = ['#{}'.format(tag) for tag in d['tags']]
+        echo(', '.join(_tags))
 
 
 @cli.command()
