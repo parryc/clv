@@ -71,10 +71,6 @@ def add(config, word, lang, definition, add_defintion):
 def edit(config, word, lang, definition, def_id, a):
   """Edit a word in the clvdb."""
   echo   = click.echo
-  output = config.output
-  data   = config.data
-  rec_id = -1
-
   if a and def_id != -1:
     echo('Cannot add and edit an entry at the same time.')
     return False
@@ -83,9 +79,9 @@ def edit(config, word, lang, definition, def_id, a):
     echo('Must select a valid definition number.')
     return False
 
-  for idx, d in enumerate(data):
-    if d['word'] == word and d['lang'] == lang:
-      rec_id = idx
+  output = config.output
+  data   = config.data
+  rec_id = _find(data, word, lang)
 
   if rec_id == -1:
     echo('Could not find entry.')
@@ -128,6 +124,24 @@ def list(config, lang):
       echo('{} | {} | {}'.format(d['word'].ljust(word_size), d['lang'].ljust(4), definitions))
 
 
+@cli.command()
+@click.argument('word')
+@click.argument('lang')
+@pass_config
+def delete(config, word, lang):
+  """Delete an entry from the clvdb."""
+  echo   = click.echo
+  output = config.output
+  data   = config.data
+  rec_id = _find(data, word, lang)
+  entry  = data.pop(rec_id)
+
+  echo('Successfully deleted {}!'.format(word))
+  if config.verbose:
+    echo(json.dumps(entry))
+  echo(json.dumps(data), file=output)
+
+
 def _load(input):
   # create new db if no JSON to load
   try:
@@ -135,6 +149,15 @@ def _load(input):
   except:
     data = []
   return data
+
+
+def _find(data, word, lang):
+  """Return record index of an entry."""
+  rec_id = -1
+  for idx, d in enumerate(data):
+    if d['word'] == word and d['lang'] == lang:
+      rec_id = idx
+  return rec_id
 
 
 def _build_definitions(definitions, offset):
