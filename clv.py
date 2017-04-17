@@ -1,11 +1,8 @@
 """Main file for CLV."""
 import click
 import json
-
-# options are optional, duh
-# arguments are mandatory and they come after the options
-# @click.option('--word', help='Word to add to DB')
-# for files, can use - for stdout
+import re
+from random import randint
 
 
 class Config(object):
@@ -19,6 +16,8 @@ class Config(object):
     self.db = None
 
 pass_config = click.make_pass_decorator(Config, ensure=True)  # ensure=True to set Config on first use
+echo        = click.echo
+nums        = '①②③④⑤⑥⑦⑧⑨⑩'
 
 
 @click.group()
@@ -45,14 +44,14 @@ def cli(config, input, output, verbose):
 @pass_config
 def add(config, word, lang, definition, add_defintion):
   """Add a word to the clvdb."""
-  echo   = click.echo
   output = config.output
   data   = config.data
 
   entry = {'word':word
           ,'lang':lang
           ,'definitions':[definition]
-          ,'tags':[]}
+          ,'tags':[]
+          ,'examples':[]}
   data.append(entry)
   echo('Successfully added {}!'.format(word))
   if config.verbose:
@@ -71,7 +70,6 @@ def add(config, word, lang, definition, add_defintion):
 @pass_config
 def edit(config, word, lang, definition, def_id, a):
   """Edit a word in the clvdb."""
-  echo   = click.echo
   if a and def_id != -1:
     echo('Cannot add and edit an entry at the same time.')
     return False
@@ -116,7 +114,6 @@ def edit(config, word, lang, definition, def_id, a):
 @pass_config
 def tag(config, word, lang, tag):
   """Tag a word in the clvdb."""
-  echo   = click.echo
   output = config.output
   data   = config.data
   rec_id = _find(data, word, lang)
@@ -134,7 +131,6 @@ def tag(config, word, lang, tag):
 @pass_config
 def untag(config, word, lang, tag):
   """Remove a tag from a word in the clvdb."""
-  echo   = click.echo
   output = config.output
   data   = config.data
   rec_id = _find(data, word, lang)
@@ -147,15 +143,32 @@ def untag(config, word, lang, tag):
 
 
 @cli.command()
+@click.argument('word')
+@click.argument('lang')
+@click.argument('example')
+@pass_config
+def example(config, word, lang, example):
+  """Add an example to an entry."""
+  data   = config.data
+  output = config.output
+  rec_id = _find(data, word, lang)
+  data[rec_id]['examples'].append(example)
+  echo('Added example to {}'.format(word))
+  if config.verbose:
+    echo(json.dumps(data[rec_id]))
+  echo(json.dumps(data), file=output)
+
+
+@cli.command()
 @click.argument('lang', required=False)
 @click.option('-t', help='Display tags', is_flag=True)
 @click.option('--tags', help='Filter by tags (comma separated)')
 @pass_config
 def list(config, lang, t, tags):
   """List words in the DB."""
-  echo = click.echo
   data = config.data
-  tags = tags.split(',')
+  if tags:
+    tags = tags.split(',')
   word_size = 10
   echo('{} | {} | {}'.format('entry'.ljust(word_size), 'lang', 'definition'))
   echo('{}-+-{}-+--------------'.format('-'.ljust(word_size, '-'), '-'.ljust(4, '-')))
@@ -174,10 +187,59 @@ def list(config, lang, t, tags):
 @cli.command()
 @click.argument('word')
 @click.argument('lang')
+@click.option('--show_cloze', help='Shows text marked as a cloze if enabled', is_flag=True)
+@pass_config
+def lookup(config, word, lang, show_cloze):
+  """Look up a single word from the DB."""
+  data   = config.data
+  rec_id = _find(data, word, lang)
+  entry  = data[rec_id]
+  echo('{} ({})'.format(word, lang))
+  for idx, d in enumerate(entry['definitions']):
+    echo('{} {}'.format(nums[idx], d))
+
+  for e in entry['examples']:
+    if not show_cloze:
+      e = e.replace('{','').replace('}','')
+    echo(e)
+
+  if entry['tags']:
+    _tags = ['#{}'.format(tag) for tag in entry['tags'].split(',')]
+    echo(', '.join(_tags))
+
+
+@cli.command()
+@pass_config
+def cloze(config):
+  """Get a random cloze from the DB."""
+  data    = config.data
+  clozes  = []
+  success = False
+  for d in data:
+    for e in d['examples']:
+      if '{' in e:
+        clozes.append(e)
+  cloze = clozes[randint(0, len(clozes) - 1)]
+  ans   = re.search(r'\{(.*?)\}', cloze)
+  if ans:
+    ans = ans.group(1)
+  cloze = re.sub(r'\{.*?\}','{...}', cloze)
+  echo(cloze)
+  while not success:
+    val = click.prompt('Answer')
+    if val == ans:
+      success = True
+      echo('Correct!')
+    else:
+      echo('Try again.')
+
+
+@cli.command()
+@click.argument('word')
+@click.argument('lang')
 @pass_config
 def delete(config, word, lang):
   """Delete an entry from the clvdb."""
-  echo   = click.echo
   output = config.output
   data   = config.data
   rec_id = _find(data, word, lang)
@@ -208,7 +270,6 @@ def _find(data, word, lang):
 
 
 def _build_definitions(definitions, offset):
-  nums = '①②③④⑤⑥⑦⑧⑨⑩'
   out  = []
   padding = 0
   for idx, d in enumerate(definitions):
