@@ -6,9 +6,11 @@ _Command Line Vocab_: for all of you who wish you could play with vocabulary fro
 
 _for local installation_
 `$ pip install --editable .`
+`$ cp default_config.ini config.ini`
 
 _for global installation_
 `pip3 install --upgrade  .`
+
 
 ## commands
 _all commands use word and language as unique key, to prevent collision with homographs across languages_

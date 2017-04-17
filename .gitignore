@@ -3,5 +3,6 @@ __pycache__
 command_line_vocab
 *.egg-info
 *.clvdb
+config.ini
 dist/
 .DS_Store

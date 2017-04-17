@@ -22,12 +22,12 @@ pass_config = click.make_pass_decorator(Config, ensure=True)  # ensure=True to s
 echo        = click.echo
 nums        = '①②③④⑤⑥⑦⑧⑨⑩'
 cfg         = configparser.ConfigParser()
-_dir        = appdirs.AppDirs('parry.cadwallader','clv')
+_dir        = appdirs.AppDirs('clv','parry.cadwallader')
 
 if os.path.exists('config.ini'):
   cfg_loc = 'config.ini'
 else:
-  cfg_loc     = os.path.join(_dir.user_data_dir, 'config.ini')
+  cfg_loc = os.path.join(_dir.user_data_dir, 'config.ini')
 
 if os.path.exists('main.clvdb'):
   db_loc = 'main.clvdb'
@@ -40,7 +40,7 @@ if os.path.exists(cfg_loc):
 else:
   cfg['config'] = {}
   cfg['config']['lang'] = 'xx'
-  # os.makedirs(_dir.user_data_dir)
+  os.makedirs(_dir.user_data_dir)
   with open(cfg_loc, 'w+') as configfile:
     cfg.write(configfile)
   open(db_loc, 'a').close()
@@ -290,6 +290,7 @@ def config(config):
   """Display current configuration of clv."""
   echo('lang:{}'.format(config.lang))
   echo('db:{}'.format(config.input.name))
+  echo('config:{}'.format(cfg_loc))
 
 
 ######################
