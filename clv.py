@@ -2,6 +2,7 @@
 import click
 import json
 import re
+import configparser
 from random import randint
 
 
@@ -18,6 +19,9 @@ class Config(object):
 pass_config = click.make_pass_decorator(Config, ensure=True)  # ensure=True to set Config on first use
 echo        = click.echo
 nums        = '①②③④⑤⑥⑦⑧⑨⑩'
+cfg         = configparser.ConfigParser()
+cfg.read('config.ini')
+lang        = cfg['config']['lang']
 
 
 @click.group()
@@ -25,30 +29,31 @@ nums        = '①②③④⑤⑥⑦⑧⑨⑩'
 @click.option('--output', type=click.File('w', atomic=True), default='main.clvdb',
               help='Location of clvdb to be used')  # atomic=True means don't ovewrite on open
 @click.option('--verbose', is_flag=True, help='Turn on verbose mode')
+@click.option('--lang', help='Language of the entry', default=lang)
 @pass_config
-def cli(config, input, output, verbose):
+def cli(config, input, output, verbose, lang):
   """A CLI for all your vocab needs."""
   config.input   = input
   config.output  = output
   config.verbose = verbose
   config.data    = _load(input)
+  config.lang    = lang
 
 
 @cli.command()
 @click.argument('word')
-@click.argument('lang')
 @click.argument('definition', required=False)
 @click.option('--add_defintion', help='Add an additional definition,\
                                        otherwise the main definition will be overwritten',
                                  is_flag=True)
 @pass_config
-def add(config, word, lang, definition, add_defintion):
+def add(config, word, definition, add_defintion):
   """Add a word to the clvdb."""
   output = config.output
   data   = config.data
 
   entry = {'word':word
-          ,'lang':lang
+          ,'lang':config.lang
           ,'definitions':[definition]
           ,'tags':[]
           ,'examples':[]}
@@ -61,14 +66,13 @@ def add(config, word, lang, definition, add_defintion):
 
 @cli.command()
 @click.argument('word')
-@click.argument('lang')
 @click.argument('definition')
 @click.option('--def_id', help='Number of definition to edit.', default=-1)
 @click.option('-a', help='Add an additional definition,\
                           otherwise the main definition will be overwritten',
                           is_flag=True)
 @pass_config
-def edit(config, word, lang, definition, def_id, a):
+def edit(config, word, definition, def_id, a):
   """Edit a word in the clvdb."""
   if a and def_id != -1:
     echo('Cannot add and edit an entry at the same time.')
@@ -80,6 +84,7 @@ def edit(config, word, lang, definition, def_id, a):
 
   output = config.output
   data   = config.data
+  lang   = config.lang
   rec_id = _find(data, word, lang)
 
   if rec_id == -1:
@@ -109,13 +114,13 @@ def edit(config, word, lang, definition, def_id, a):
 
 @cli.command()
 @click.argument('word')
-@click.argument('lang')
 @click.argument('tag')
 @pass_config
-def tag(config, word, lang, tag):
+def tag(config, word, tag):
   """Tag a word in the clvdb."""
   output = config.output
   data   = config.data
+  lang   = config.lang
   rec_id = _find(data, word, lang)
   data[rec_id]['tags'].append(tag)
   echo('Added tag to {}'.format(word))
@@ -126,13 +131,13 @@ def tag(config, word, lang, tag):
 
 @cli.command()
 @click.argument('word')
-@click.argument('lang')
 @click.argument('tag')
 @pass_config
-def untag(config, word, lang, tag):
+def untag(config, word, tag):
   """Remove a tag from a word in the clvdb."""
   output = config.output
   data   = config.data
+  lang   = config.lang
   rec_id = _find(data, word, lang)
   tags   = data[rec_id]['tags']
   data[rec_id]['tags'] = [t for t in tags if t != tag]
@@ -144,13 +149,13 @@ def untag(config, word, lang, tag):
 
 @cli.command()
 @click.argument('word')
-@click.argument('lang')
 @click.argument('example')
 @pass_config
-def example(config, word, lang, example):
+def example(config, word, example):
   """Add an example to an entry."""
   data   = config.data
   output = config.output
+  lang   = config.lang
   rec_id = _find(data, word, lang)
   data[rec_id]['examples'].append(example)
   echo('Added example to {}'.format(word))
@@ -186,7 +191,7 @@ def list(config, lang, t, tags):
 
 @cli.command()
 @click.argument('word')
-@click.argument('lang')
+@click.argument('lang', required=False)
 @click.option('--show_cloze', help='Shows text marked as a cloze if enabled', is_flag=True)
 @pass_config
 def lookup(config, word, lang, show_cloze):
@@ -204,7 +209,7 @@ def lookup(config, word, lang, show_cloze):
     echo(e)
 
   if entry['tags']:
-    _tags = ['#{}'.format(tag) for tag in entry['tags'].split(',')]
+    _tags = ['#{}'.format(tag) for tag in entry['tags']]
     echo(', '.join(_tags))
 
 
@@ -249,6 +254,29 @@ def delete(config, word, lang):
   if config.verbose:
     echo(json.dumps(entry))
   echo(json.dumps(data), file=output)
+
+
+@cli.command()
+@click.argument('key')
+@click.argument('value')
+def set(key, value):
+  """Set a configuration value."""
+  cfg['config'][key] = value
+  with open('config.ini', 'w') as configfile:
+    cfg.write(configfile)
+
+
+@cli.command()
+@pass_config
+def config(config):
+  """Display current configuration of clv."""
+  echo('lang:{}'.format(config.lang))
+  echo('db:{}'.format(config.input.name))
+
+
+######################
+# INTERNAL FUNCTIONS #
+######################
 
 
 def _load(input):
