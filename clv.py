@@ -30,6 +30,7 @@ lang        = cfg['config']['lang']
               help='Location of clvdb to be used')  # atomic=True means don't ovewrite on open
 @click.option('--verbose', is_flag=True, help='Turn on verbose mode')
 @click.option('--lang', help='Language of the entry', default=lang)
+@click.version_option()
 @pass_config
 def cli(config, input, output, verbose, lang):
   """A CLI for all your vocab needs."""
@@ -49,7 +50,6 @@ def cli(config, input, output, verbose, lang):
 @pass_config
 def add(config, word, definition, add_defintion):
   """Add a word to the clvdb."""
-  output = config.output
   data   = config.data
 
   entry = {'word':word
@@ -61,7 +61,7 @@ def add(config, word, definition, add_defintion):
   echo('Successfully added {}!'.format(word))
   if config.verbose:
     echo(json.dumps(entry))
-  echo(json.dumps(data), file=output)
+  _save(data, config)
 
 
 @cli.command()
@@ -82,7 +82,6 @@ def edit(config, word, definition, def_id, a):
     echo('Must select a valid definition number.')
     return False
 
-  output = config.output
   data   = config.data
   lang   = config.lang
   rec_id = _find(data, word, lang)
@@ -109,7 +108,7 @@ def edit(config, word, definition, def_id, a):
   if config.verbose:
     echo('After:')
     echo(json.dumps(data[rec_id]))
-  echo(json.dumps(data), file=output)
+  _save(data, config)
 
 
 @cli.command()
@@ -118,7 +117,6 @@ def edit(config, word, definition, def_id, a):
 @pass_config
 def tag(config, word, tag):
   """Tag a word in the clvdb."""
-  output = config.output
   data   = config.data
   lang   = config.lang
   rec_id = _find(data, word, lang)
@@ -126,7 +124,7 @@ def tag(config, word, tag):
   echo('Added tag to {}'.format(word))
   if config.verbose:
     echo(json.dumps(data[rec_id]))
-  echo(json.dumps(data), file=output)
+  _save(data, config)
 
 
 @cli.command()
@@ -135,7 +133,6 @@ def tag(config, word, tag):
 @pass_config
 def untag(config, word, tag):
   """Remove a tag from a word in the clvdb."""
-  output = config.output
   data   = config.data
   lang   = config.lang
   rec_id = _find(data, word, lang)
@@ -144,7 +141,7 @@ def untag(config, word, tag):
   echo('Removed tag from {}'.format(word))
   if config.verbose:
     echo(json.dumps(data[rec_id]))
-  echo(json.dumps(data), file=output)
+  _save(data, config)
 
 
 @cli.command()
@@ -154,14 +151,13 @@ def untag(config, word, tag):
 def example(config, word, example):
   """Add an example to an entry."""
   data   = config.data
-  output = config.output
   lang   = config.lang
   rec_id = _find(data, word, lang)
   data[rec_id]['examples'].append(example)
   echo('Added example to {}'.format(word))
   if config.verbose:
     echo(json.dumps(data[rec_id]))
-  echo(json.dumps(data), file=output)
+  _save(data, config)
 
 
 @cli.command()
@@ -245,7 +241,6 @@ def cloze(config):
 @pass_config
 def delete(config, word, lang):
   """Delete an entry from the clvdb."""
-  output = config.output
   data   = config.data
   rec_id = _find(data, word, lang)
   entry  = data.pop(rec_id)
@@ -253,7 +248,7 @@ def delete(config, word, lang):
   echo('Successfully deleted {}!'.format(word))
   if config.verbose:
     echo(json.dumps(entry))
-  echo(json.dumps(data), file=output)
+  _save(data, config)
 
 
 @cli.command()
@@ -277,6 +272,10 @@ def config(config):
 ######################
 # INTERNAL FUNCTIONS #
 ######################
+
+
+def _save(data, config):
+  echo(json.dumps(data), file=config.output)
 
 
 def _load(input):

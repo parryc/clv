@@ -3,10 +3,10 @@ from setuptools import setup
 
 setup(
     name='command-line-vocab',
-    version='1.0',
+    version='1.0alpha',
     py_modules=['clv'],
     # http://python-packaging.readthedocs.io/en/latest/non-code-files.html
-    # include_package_data=True,
+    include_package_data=True,
     install_requires=[
         'click'
     ],
