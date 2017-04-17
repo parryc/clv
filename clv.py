@@ -3,6 +3,8 @@ import click
 import json
 import re
 import configparser
+import appdirs
+import os
 from random import randint
 
 
@@ -20,13 +22,35 @@ pass_config = click.make_pass_decorator(Config, ensure=True)  # ensure=True to s
 echo        = click.echo
 nums        = '①②③④⑤⑥⑦⑧⑨⑩'
 cfg         = configparser.ConfigParser()
-cfg.read('config.ini')
-lang        = cfg['config']['lang']
+_dir        = appdirs.AppDirs('parry.cadwallader','clv')
+
+if os.path.exists('config.ini'):
+  cfg_loc = 'config.ini'
+else:
+  cfg_loc     = os.path.join(_dir.user_data_dir, 'config.ini')
+
+if os.path.exists('main.clvdb'):
+  db_loc = 'main.clvdb'
+else:
+  db_loc = os.path.join(_dir.user_data_dir, 'main.clvdb')
+
+# in local dev mode
+if os.path.exists(cfg_loc):
+  cfg.read(cfg_loc)
+else:
+  cfg['config'] = {}
+  cfg['config']['lang'] = 'xx'
+  # os.makedirs(_dir.user_data_dir)
+  with open(cfg_loc, 'w+') as configfile:
+    cfg.write(configfile)
+  open(db_loc, 'a').close()
+
+lang = cfg['config']['lang']
 
 
 @click.group()
-@click.option('--input', type=click.File(), default='main.clvdb', help='Location of clvdb to be used')
-@click.option('--output', type=click.File('w', atomic=True), default='main.clvdb',
+@click.option('--input', type=click.File(), default=db_loc, help='Location of clvdb to be used')
+@click.option('--output', type=click.File('w', atomic=True), default=db_loc,
               help='Location of clvdb to be used')  # atomic=True means don't ovewrite on open
 @click.option('--verbose', is_flag=True, help='Turn on verbose mode')
 @click.option('--lang', help='Language of the entry', default=lang)
@@ -237,12 +261,11 @@ def cloze(config):
 
 @cli.command()
 @click.argument('word')
-@click.argument('lang')
 @pass_config
-def delete(config, word, lang):
+def delete(config, word):
   """Delete an entry from the clvdb."""
   data   = config.data
-  rec_id = _find(data, word, lang)
+  rec_id = _find(data, word, config.lang)
   entry  = data.pop(rec_id)
 
   echo('Successfully deleted {}!'.format(word))

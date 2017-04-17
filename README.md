@@ -5,9 +5,10 @@ _Command Line Vocab_: for all of you who wish you could play with vocabulary fro
 ## installation
 
 _for local installation_
-```
-$ pip install --editable .
-```
+`$ pip install --editable .`
+
+_for global installation_
+`pip3 install --upgrade  .`
 
 ## commands
 _all commands use word and language as unique key, to prevent collision with homographs across languages_
