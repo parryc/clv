@@ -68,13 +68,14 @@ def cli(config, input, output, verbose, lang):
 @cli.command()
 @click.argument('word')
 @click.argument('definition', required=False)
-@click.option('--add_defintion', help='Add an additional definition,\
-                                       otherwise the main definition will be overwritten',
-                                 is_flag=True)
 @pass_config
-def add(config, word, definition, add_defintion):
+def add(config, word, definition):
   """Add a word to the clvdb."""
   data   = config.data
+  rec_id = _find(data, word, config.lang)
+  if rec_id > -1:
+    echo('Duplicate entry, please use the edit command to add a new definition.')
+    return False
 
   entry = {'word':word
           ,'lang':config.lang
@@ -102,7 +103,7 @@ def edit(config, word, definition, def_id, a):
     echo('Cannot add and edit an entry at the same time.')
     return False
 
-  if def_id <= 0:
+  if not a and def_id <= 0:
     echo('Must select a valid definition number.')
     return False
 
@@ -119,7 +120,10 @@ def edit(config, word, definition, def_id, a):
     echo(json.dumps(data[rec_id]))
 
   if a:
-    data[rec_id]['definitions'].append(definition)
+    if data[rec_id]['definitions'][0] is None:
+      data[rec_id]['definitions'][0] = definition
+    else:
+      data[rec_id]['definitions'].append(definition)
   else:
     try:
       # 1 indexed to match the terminal output
