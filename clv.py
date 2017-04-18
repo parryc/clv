@@ -221,9 +221,15 @@ def list(config, lang, t, tags):
 def lookup(config, word, lang, show_cloze):
   """Look up a single word from the DB."""
   data   = config.data
+  if not lang:
+    lang = config.lang
   rec_id = _find(data, word, lang)
+  if rec_id == -1:
+    echo('No entry found for word {} in lang {}'.format(word, lang))
+    return False
+
   entry  = data[rec_id]
-  echo('{} ({})'.format(word, lang))
+  echo('{} ({})'.format(word, entry['lang']))
   for idx, d in enumerate(entry['definitions']):
     echo('{} {}'.format(nums[idx], d))
 
