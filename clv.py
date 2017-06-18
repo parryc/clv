@@ -46,6 +46,7 @@ else:
   open(db_loc, 'a').close()
 
 lang = cfg['config']['lang']
+latest = cfg['config']['latest']
 
 
 @click.group()
@@ -54,15 +55,17 @@ lang = cfg['config']['lang']
               help='Location of clvdb to be used')  # atomic=True means don't ovewrite on open
 @click.option('--verbose', is_flag=True, help='Turn on verbose mode')
 @click.option('--lang', help='Language of the entry', default=lang)
+@click.option('--latest', help='Latest CLV entry', default=latest)
 @click.version_option()
 @pass_config
-def cli(config, input, output, verbose, lang):
+def cli(config, input, output, verbose, lang, latest):
   """A CLI for all your vocab needs."""
   config.input   = input
   config.output  = output
   config.verbose = verbose
   config.data    = _load(input)
   config.lang    = lang
+  config.latest  = latest
 
 
 @cli.command()
@@ -83,9 +86,11 @@ def add(config, word, definition):
           ,'tags':[]
           ,'examples':[]}
   data.append(entry)
-  echo('Successfully added {}!'.format(word))
+  echo('Successfully added {} for lang {}!'.format(word, config.lang))
+
   if config.verbose:
     echo(json.dumps(entry))
+  _set('latest', word)
   _save(data, config)
 
 
@@ -106,6 +111,9 @@ def edit(config, word, definition, def_id, a):
   if not a and def_id <= 0:
     echo('Must select a valid definition number.')
     return False
+
+  if word == '_':
+    word = config.latest
 
   data   = config.data
   lang   = config.lang
@@ -133,9 +141,11 @@ def edit(config, word, definition, def_id, a):
       return False
 
   echo('Successfully edited {}!'.format(word))
+
   if config.verbose:
     echo('After:')
     echo(json.dumps(data[rec_id]))
+  _set('latest', word)
   _save(data, config)
 
 
@@ -147,11 +157,15 @@ def tag(config, word, tag):
   """Tag a word in the clvdb."""
   data   = config.data
   lang   = config.lang
+  if word == '_':
+    word = config.latest
+
   rec_id = _find(data, word, lang)
   data[rec_id]['tags'].append(tag)
   echo('Added tag to {}'.format(word))
   if config.verbose:
     echo(json.dumps(data[rec_id]))
+  _set('latest', word)
   _save(data, config)
 
 
@@ -163,12 +177,16 @@ def untag(config, word, tag):
   """Remove a tag from a word in the clvdb."""
   data   = config.data
   lang   = config.lang
+  if word == '_':
+    word = config.latest
+
   rec_id = _find(data, word, lang)
   tags   = data[rec_id]['tags']
   data[rec_id]['tags'] = [t for t in tags if t != tag]
   echo('Removed tag from {}'.format(word))
   if config.verbose:
     echo(json.dumps(data[rec_id]))
+  _set('latest', word)
   _save(data, config)
 
 
@@ -180,11 +198,15 @@ def example(config, word, example):
   """Add an example to an entry."""
   data   = config.data
   lang   = config.lang
+  if word == '_':
+    word = config.latest
+
   rec_id = _find(data, word, lang)
   data[rec_id]['examples'].append(example)
   echo('Added example to {}'.format(word))
   if config.verbose:
     echo(json.dumps(data[rec_id]))
+  _set('latest', word)
   _save(data, config)
 
 
@@ -220,15 +242,17 @@ def list(config, lang, t, tags):
 @pass_config
 def lookup(config, word, lang, show_cloze):
   """Look up a single word from the DB."""
-  data   = config.data
+  data = config.data
   if not lang:
     lang = config.lang
+  if word == '_':
+    word = config.latest
   rec_id = _find(data, word, lang)
   if rec_id == -1:
     echo('No entry found for word {} in lang {}'.format(word, lang))
     return False
 
-  entry  = data[rec_id]
+  entry = data[rec_id]
   echo('{} ({})'.format(word, entry['lang']))
   for idx, d in enumerate(entry['definitions']):
     echo('{} {}'.format(nums[idx], d))
@@ -241,6 +265,8 @@ def lookup(config, word, lang, show_cloze):
   if entry['tags']:
     _tags = ['#{}'.format(tag) for tag in entry['tags']]
     echo(', '.join(_tags))
+
+  _set('latest', word)
 
 
 @cli.command()
@@ -275,6 +301,8 @@ def cloze(config):
 def delete(config, word):
   """Delete an entry from the clvdb."""
   data   = config.data
+  if word == '_':
+    word = config.latest
   rec_id = _find(data, word, config.lang)
   entry  = data.pop(rec_id)
 
@@ -289,9 +317,7 @@ def delete(config, word):
 @click.argument('value')
 def set(key, value):
   """Set a configuration value."""
-  cfg['config'][key] = value
-  with open('config.ini', 'w') as configfile:
-    cfg.write(configfile)
+  _set(key, value)
 
 
 @cli.command()
@@ -301,6 +327,7 @@ def config(config):
   echo('lang:{}'.format(config.lang))
   echo('db:{}'.format(config.input.name))
   echo('config:{}'.format(cfg_loc))
+  echo('latest:{}'.format(config.latest))
 
 
 ######################
@@ -340,3 +367,9 @@ def _build_definitions(definitions, offset):
       padding = offset + 10
     out.append('{}{} {}'.format(' ' * padding, nums[idx], d))
   return '\n'.join(out)
+
+
+def _set(key, value):
+  cfg['config'][key] = value
+  with open('config.ini', 'w') as configfile:
+    cfg.write(configfile)
